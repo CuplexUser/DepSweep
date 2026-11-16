@@ -1,0 +1,51 @@
+﻿<Application x:Class="DepSweep.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:DepSweep.App"
+             ThemeMode="System"
+             ShutdownMode="OnMainWindowClose">
+    <Application.Resources>
+        <ResourceDictionary>
+            <SolidColorBrush x:Key="CriticalBrush" Color="#C62828" />
+            <SolidColorBrush x:Key="HighBrush" Color="#E8710A" />
+            <SolidColorBrush x:Key="ModerateBrush" Color="#C9A100" />
+            <SolidColorBrush x:Key="LowBrush" Color="#6B7C8C" />
+
+            <local:StatusBrushConverter x:Key="StatusBrush" />
+            <local:CountOpacityConverter x:Key="CountOpacity" />
+            <local:NotNullToVisibilityConverter x:Key="NotNullToVisibility" />
+            <local:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+            <local:SeverityBrushConverter x:Key="SeverityBrush" />
+
+            <!-- Small rounded severity count badge. Tag supplies the background brush. -->
+            <Style x:Key="Badge" TargetType="Border">
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="MinWidth" Value="26" />
+                <Setter Property="Padding" Value="5,1" />
+                <Setter Property="HorizontalAlignment" Value="Center" />
+            </Style>
+            <Style x:Key="BadgeText" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="White" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="HorizontalAlignment" Value="Center" />
+            </Style>
+            <Style x:Key="SectionHeader" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Margin" Value="0,0,0,6" />
+            </Style>
+            <Style x:Key="Muted" TargetType="TextBlock">
+                <Setter Property="Opacity" Value="0.7" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            </Style>
+            <Style x:Key="Card" TargetType="Border">
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Padding" Value="16,12" />
+                <Setter Property="Margin" Value="0,0,0,12" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

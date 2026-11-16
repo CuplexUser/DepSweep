@@ -1,0 +1,398 @@
+﻿<Window x:Class="DepSweep.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:DepSweep.App.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+        Title="DepSweep" Width="1320" Height="820" MinWidth="960" MinHeight="580"
+        WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ===== Command bar ===== -->
+        <DockPanel Grid.Row="0" Margin="16,12,16,8" LastChildFill="False">
+            <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+                <TextBlock Text="DepSweep" FontSize="20" FontWeight="SemiBold" />
+                <TextBlock Text="Audit and fix npm / pnpm vulnerabilities across your repositories" Style="{StaticResource Muted}" />
+            </StackPanel>
+
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <CheckBox Content="Allow --force (breaking)" IsChecked="{Binding Force}" Margin="0,0,16,0" VerticalAlignment="Center"
+                          ToolTip="npm: npm audit fix --force (may apply semver-major upgrades). pnpm: pin patched versions with overrides." />
+                <CheckBox Content="Include uncommitted" IsChecked="{Binding AllowDirty}" Margin="0,0,16,0" VerticalAlignment="Center"
+                          ToolTip="Also fix projects whose package.json / lockfile already has uncommitted changes." />
+                <Button Content="Discover" Command="{Binding DiscoverCommand}" Margin="0,0,8,0" MinWidth="90"
+                        ToolTip="Search the root folders for projects" />
+                <Button Content="Scan selected" Command="{Binding ScanCommand}" Margin="0,0,8,0" MinWidth="110"
+                        ToolTip="Run npm/pnpm audit on the selected projects (read-only)" />
+                <Button Content="Fix selected" Command="{Binding FixCommand}" Margin="0,0,8,0" MinWidth="110"
+                        Style="{DynamicResource AccentButtonStyle}"
+                        ToolTip="Run audit fix on the selected projects, then show the report" />
+                <Button Content="Cancel" Command="{Binding CancelCommand}" MinWidth="80"
+                        Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+            </StackPanel>
+        </DockPanel>
+
+        <!-- ===== Content ===== -->
+        <Grid Grid.Row="1" Margin="16,0,16,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="290" MinWidth="200" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Roots pane -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <DockPanel Grid.Row="0" Margin="0,8,0,8">
+                    <Button DockPanel.Dock="Right" Content="Remove" Command="{Binding RemoveRootCommand}" Margin="6,0,0,0" />
+                    <Button DockPanel.Dock="Right" Content="Add folder…" Command="{Binding AddRootCommand}" />
+                    <TextBlock Text="Root folders" Style="{StaticResource SectionHeader}" VerticalAlignment="Center" Margin="0" />
+                </DockPanel>
+
+                <ListBox Grid.Row="1" ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedRoot}"
+                         HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:RootViewModel}">
+                            <StackPanel Margin="0,4">
+                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Path}" Style="{StaticResource Muted}" FontSize="11" ToolTip="{Binding Path}" />
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <CheckBox Content="Sub-folders" IsChecked="{Binding Recursive}" Margin="0,0,12,0"
+                                              ToolTip="Search sub-folders for projects (off: only this folder)" />
+                                    <CheckBox Content="Enabled" IsChecked="{Binding Enabled}" />
+                                </StackPanel>
+                                <TextBlock Text="Folder not found" Foreground="#D13B3B" FontSize="11"
+                                           Visibility="{Binding Exists, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <Expander Grid.Row="2" Margin="0,8,0,8" Header="Skipped folders" ToolTip="Folders with a package.json that cannot be audited">
+                    <ListBox ItemsSource="{Binding IgnoredFolders}" MaxHeight="180" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,2">
+                                    <TextBlock Text="{Binding Path}" FontSize="11" TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}" />
+                                    <TextBlock Text="{Binding Reason}" FontSize="11" Style="{StaticResource Muted}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Expander>
+            </Grid>
+
+            <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" Background="Transparent" />
+
+            <!-- Main tabs -->
+            <TabControl Grid.Column="2" SelectedIndex="{Binding SelectedTab}">
+                <!-- ===== Projects tab ===== -->
+                <TabItem Header="Projects">
+                    <Grid Margin="0,8,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" MinHeight="160" />
+                            <RowDefinition Height="8" />
+                            <RowDefinition Height="230" MinHeight="100" />
+                        </Grid.RowDefinitions>
+
+                        <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                                <Button Content="Select all" Command="{Binding SelectAllCommand}" Margin="0,0,6,0" />
+                                <Button Content="Select none" Command="{Binding SelectNoneCommand}" Margin="0,0,6,0" />
+                                <Button Content="Select vulnerable" Command="{Binding SelectVulnerableCommand}" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding SelectionSummary}" Style="{StaticResource Muted}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                        </DockPanel>
+
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}"
+                                  AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                                  SelectionMode="Single" SelectionUnit="FullRow" HeadersVisibility="Column"
+                                  GridLinesVisibility="None" IsReadOnly="False" RowHeight="44"
+                                  EnableRowVirtualization="True">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Width="40" CanUserSort="False">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="0" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTemplateColumn Header="Project" Width="2*" SortMemberPath="Name">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding RelativePath}" Style="{StaticResource Muted}" FontSize="11" ToolTip="{Binding Path}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTextColumn Header="PM" Binding="{Binding Manager}" Width="55" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center" />
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <DataGridTemplateColumn Header="Status" Width="110" SortMemberPath="Status">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold"
+                                                           Foreground="{Binding Status, Converter={StaticResource StatusBrush}}" />
+                                                <ProgressBar IsIndeterminate="True" Height="3" Margin="0,3,8,0"
+                                                             Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTemplateColumn Header="Crit" Width="50" SortMemberPath="Critical">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource Badge}" Background="{StaticResource CriticalBrush}" VerticalAlignment="Center"
+                                                    Opacity="{Binding Critical, Converter={StaticResource CountOpacity}}">
+                                                <TextBlock Style="{StaticResource BadgeText}" Text="{Binding Critical, TargetNullValue='–'}" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="High" Width="50" SortMemberPath="High">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource Badge}" Background="{StaticResource HighBrush}" VerticalAlignment="Center"
+                                                    Opacity="{Binding High, Converter={StaticResource CountOpacity}}">
+                                                <TextBlock Style="{StaticResource BadgeText}" Text="{Binding High, TargetNullValue='–'}" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Mod" Width="50" SortMemberPath="Moderate">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource Badge}" Background="{StaticResource ModerateBrush}" VerticalAlignment="Center"
+                                                    Opacity="{Binding Moderate, Converter={StaticResource CountOpacity}}">
+                                                <TextBlock Style="{StaticResource BadgeText}" Text="{Binding Moderate, TargetNullValue='–'}" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Low" Width="50" SortMemberPath="Low">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource Badge}" Background="{StaticResource LowBrush}" VerticalAlignment="Center"
+                                                    Opacity="{Binding Low, Converter={StaticResource CountOpacity}}">
+                                                <TextBlock Style="{StaticResource BadgeText}" Text="{Binding Low, TargetNullValue='–'}" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTemplateColumn Header="Branch" Width="100" SortMemberPath="Branch">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Branch}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding Repo}" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTemplateColumn Header="Details" Width="3*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Message}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding Message}" Style="{StaticResource Muted}" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Open folder" Command="{Binding OpenProjectFolderCommand}"
+                                              CommandParameter="{Binding SelectedProject}" />
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
+                        </DataGrid>
+
+                        <GridSplitter Grid.Row="2" Height="8" HorizontalAlignment="Stretch" Background="Transparent" />
+
+                        <!-- Details of the selected project -->
+                        <Grid Grid.Row="3" DataContext="{Binding SelectedProject}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="3*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="2*" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.ColumnSpan="3" Text="Select a project to see its vulnerabilities and output."
+                                       Style="{StaticResource Muted}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Visibility="{Binding Converter={StaticResource NotNullToVisibility}, ConverterParameter=invert}" />
+
+                            <DockPanel Grid.Column="0" Visibility="{Binding Converter={StaticResource NotNullToVisibility}}">
+                                <TextBlock DockPanel.Dock="Top" Style="{StaticResource SectionHeader}">
+                                    <Run Text="Vulnerabilities in" /> <Run Text="{Binding Name, Mode=OneWay}" />
+                                </TextBlock>
+                                <ListBox ItemsSource="{Binding Vulnerabilities}" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         HorizontalContentAlignment="Stretch">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="80" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border Style="{StaticResource Badge}" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                                        Background="{Binding Severity, Converter={StaticResource SeverityBrush}}">
+                                                    <TextBlock Style="{StaticResource BadgeText}" Text="{Binding Severity}" FontSize="11" />
+                                                </Border>
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock TextWrapping="Wrap">
+                                                        <Run Text="{Binding Package, Mode=OneWay}" FontWeight="SemiBold" />
+                                                        <Run Text="—" />
+                                                        <Run Text="{Binding FixDescription, Mode=OneWay}" />
+                                                    </TextBlock>
+                                                    <ItemsControl ItemsSource="{Binding Advisories}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding Title}" FontSize="11" Style="{StaticResource Muted}"
+                                                                           ToolTip="{Binding Url}" TextWrapping="Wrap" />
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </DockPanel>
+
+                            <DockPanel Grid.Column="2" Visibility="{Binding Converter={StaticResource NotNullToVisibility}}">
+                                <TextBlock DockPanel.Dock="Top" Text="Output" Style="{StaticResource SectionHeader}" />
+                                <TextBox Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True" FontFamily="Cascadia Mono, Consolas"
+                                         FontSize="11" TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto"
+                                         HorizontalScrollBarVisibility="Auto" VerticalContentAlignment="Top"
+                                         TextChanged="LogTextBox_TextChanged" />
+                            </DockPanel>
+                        </Grid>
+                    </Grid>
+                </TabItem>
+
+                <!-- ===== Report tab ===== -->
+                <TabItem Header="Report">
+                    <DockPanel Margin="0,8,0,0">
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Content="Copy as Markdown" Command="{Binding CopyReportCommand}" Margin="0,0,6,0" />
+                                <Button Content="Export…" Command="{Binding ExportReportCommand}" Margin="0,0,6,0" />
+                                <Button Content="Reports folder" Command="{Binding OpenReportsFolderCommand}" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding ReportSummary}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        </DockPanel>
+
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding ReportRepos}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:RepoCardViewModel}">
+                                        <Border Style="{StaticResource Card}">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                                                        <Button Content="Copy commit message" Command="{Binding CopyCommitMessageCommand}" Margin="0,0,6,0"
+                                                                Visibility="{Binding HasChanges, Converter={StaticResource BoolToVisibility}}" />
+                                                        <Button Content="Copy git add" Command="{Binding CopyGitAddCommand}" Margin="0,0,6,0"
+                                                                Visibility="{Binding GitAddCommand, Converter={StaticResource NotNullToVisibility}}" />
+                                                        <Button Content="Open folder" Command="{Binding OpenFolderCommand}" Margin="0,0,6,0" />
+                                                        <Button Content="Terminal" Command="{Binding OpenTerminalCommand}" />
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                        <Border CornerRadius="4" Padding="6,1" Margin="10,0,0,0" VerticalAlignment="Center"
+                                                                Background="#332F7CD6"
+                                                                Visibility="{Binding Branch, Converter={StaticResource NotNullToVisibility}}">
+                                                            <TextBlock Text="{Binding Branch}" FontSize="12" FontFamily="Cascadia Mono, Consolas" />
+                                                        </Border>
+                                                        <Border CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                                Background="#332E9E5B"
+                                                                Visibility="{Binding HasChanges, Converter={StaticResource BoolToVisibility}}">
+                                                            <TextBlock Text="changes to commit" FontSize="12" />
+                                                        </Border>
+                                                    </StackPanel>
+                                                </DockPanel>
+                                                <TextBlock Text="{Binding RepoRoot}" Style="{StaticResource Muted}" FontSize="11" Margin="0,2,0,0" />
+                                                <TextBlock Text="{Binding Summary}" Margin="0,6,0,8" />
+
+                                                <ItemsControl ItemsSource="{Binding Projects}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Grid Margin="0,2">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="90" />
+                                                                    <ColumnDefinition Width="220" />
+                                                                    <ColumnDefinition Width="Auto" MinWidth="180" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock Text="{Binding Status}" FontWeight="SemiBold"
+                                                                           Foreground="{Binding Status, Converter={StaticResource StatusBrush}}" />
+                                                                <TextBlock Grid.Column="1" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativePath}">
+                                                                    <Run Text="{Binding Name, Mode=OneWay}" />
+                                                                    <Run Text="{Binding RelativePath, Mode=OneWay}" FontSize="11" Foreground="Gray" />
+                                                                </TextBlock>
+                                                                <TextBlock Grid.Column="2" Text="{Binding Counts}" FontFamily="Cascadia Mono, Consolas"
+                                                                           Margin="0,0,16,0" ToolTip="Critical/High/Moderate/Low before → after" />
+                                                                <TextBlock Grid.Column="3" Text="{Binding Message}" TextWrapping="Wrap" Style="{StaticResource Muted}" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+
+                                                <StackPanel Margin="0,10,0,0" Visibility="{Binding HasChanges, Converter={StaticResource BoolToVisibility}}">
+                                                    <TextBlock Text="Changed files" Style="{StaticResource SectionHeader}" />
+                                                    <ItemsControl ItemsSource="{Binding ChangedFiles}" Margin="0,0,0,8">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding}" FontFamily="Cascadia Mono, Consolas" Foreground="#2E9E5B" />
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                    <TextBlock Text="Suggested commit message" Style="{StaticResource SectionHeader}" />
+                                                    <TextBox Text="{Binding CommitMessage, Mode=OneWay}" IsReadOnly="True" Margin="0,0,0,8" />
+                                                    <TextBox Text="{Binding GitAddCommand, Mode=OneWay}" IsReadOnly="True"
+                                                             FontFamily="Cascadia Mono, Consolas" FontSize="11" TextWrapping="Wrap"
+                                                             Visibility="{Binding GitAddCommand, Converter={StaticResource NotNullToVisibility}}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </TabItem>
+            </TabControl>
+        </Grid>
+
+        <!-- ===== Status bar ===== -->
+        <DockPanel Grid.Row="2" Margin="16,8,16,10">
+            <ProgressBar DockPanel.Dock="Right" Width="160" Height="4" IsIndeterminate="True" VerticalAlignment="Center"
+                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+            <TextBlock Text="{Binding StatusText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        </DockPanel>
+    </Grid>
+</Window>

@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DepSweep.App/DepSweep.App.csproj" />
+    <Project Path="src/DepSweep.Cli/DepSweep.Cli.csproj" />
+    <Project Path="src/DepSweep.Core/DepSweep.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DepSweep.Core.Tests/DepSweep.Core.Tests.csproj" />
+  </Folder>
+</Solution>
