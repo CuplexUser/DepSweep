@@ -1,0 +1,27 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <!--
+    Builds DepSweep.msi from the published executables. Normally invoked through tools/build-installer.ps1,
+    which publishes the apps, computes the version from git tags (MinVer) and passes it in here.
+  -->
+  <PropertyGroup>
+    <OutputName>DepSweep</OutputName>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <!-- MSI ProductVersion must be numeric major.minor.patch. -->
+    <DepSweepVersion Condition="'$(DepSweepVersion)' == ''">0.0.1</DepSweepVersion>
+    <AppPublishDir Condition="'$(AppPublishDir)' == ''">$(MSBuildThisFileDirectory)..\artifacts\publish\</AppPublishDir>
+    <AppPublishDir Condition="!HasTrailingSlash('$(AppPublishDir)')">$(AppPublishDir)\</AppPublishDir>
+    <!-- ICE61 flags AllowSameVersionUpgrades, which is intentional (rebuilds of the same version replace each other). -->
+    <SuppressIces>ICE61</SuppressIces>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <DefineConstants>DepSweepVersion=$(DepSweepVersion);AppPublishDir=$(AppPublishDir);RepoRoot=$(MSBuildThisFileDirectory)..\</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+  </ItemGroup>
+
+  <Target Name="CheckPublishedApps" BeforeTargets="Build">
+    <Error Condition="!Exists('$(AppPublishDir)DepSweepGui.exe') Or !Exists('$(AppPublishDir)depsweep.exe')"
+           Text="Published executables not found in '$(AppPublishDir)'. Run tools\build-installer.ps1 (it publishes first)." />
+  </Target>
+</Project>

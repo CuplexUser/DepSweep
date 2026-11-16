@@ -16,6 +16,8 @@
             <local:NotNullToVisibilityConverter x:Key="NotNullToVisibility" />
             <local:BoolToVisibilityConverter x:Key="BoolToVisibility" />
             <local:SeverityBrushConverter x:Key="SeverityBrush" />
+            <local:InvertBoolConverter x:Key="InvertBool" />
+            <local:EnumDisplayConverter x:Key="EnumDisplay" />
 
             <!-- Small rounded severity count badge. Tag supplies the background brush. -->
             <Style x:Key="Badge" TargetType="Border">

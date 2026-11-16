@@ -13,7 +13,7 @@ public static class MarkdownReportWriter
         sb.AppendLine("# DepSweep report");
         sb.AppendLine();
         var mode = report.DryRun ? "dry run" : report.Force ? "fix (--force)" : "fix";
-        sb.AppendLine($"- **Run:** {report.StartedAt:yyyy-MM-dd HH:mm} ({mode}, {(report.FinishedAt - report.StartedAt).TotalSeconds:0}s){(report.Cancelled ? " — **cancelled**" : "")}");
+        sb.AppendLine($"- **Run:** {report.StartedAt:yyyy-MM-dd HH:mm} ({mode}, {(report.FinishedAt - report.StartedAt).TotalSeconds:0}s){(report.Cancelled ? " — **cancelled**" : "")} — DepSweep {AppInfo.DisplayVersion}");
         sb.AppendLine($"- **Projects:** {report.Projects.Count} — vulnerabilities before: {report.TotalBefore.ToSummary()}; remaining: {report.TotalRemaining.ToSummary()}");
         var changed = report.ChangedRepositories.ToList();
         sb.AppendLine($"- **Repositories with changes to commit:** {changed.Count}");
@@ -112,6 +112,7 @@ public static class JsonReportWriter
 
     private static object ToDto(SweepReport r) => new
     {
+        toolVersion = AppInfo.Version,
         r.StartedAt,
         r.FinishedAt,
         r.Force,

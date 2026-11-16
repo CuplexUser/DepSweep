@@ -8,11 +8,17 @@
     <RootNamespace>DepSweep.App</RootNamespace>
     <!-- WPF Fluent ThemeMode is still marked experimental. -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <ApplicationIcon>Assets\DepSweep.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\DepSweep.ico" />
+    <None Remove="Assets\DepSweep.png" />
   </ItemGroup>
 
   <ItemGroup>

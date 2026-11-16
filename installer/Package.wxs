@@ -1,0 +1,67 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <!--
+    UpgradeCode identifies the product across versions: never change it, or new versions will install
+    side by side instead of upgrading.
+  -->
+  <Package Name="DepSweep"
+           Manufacturer="DepSweep"
+           Version="$(var.DepSweepVersion)"
+           UpgradeCode="DDCF0080-550C-4299-9089-DB35564CEF59"
+           Scope="perMachine"
+           Language="1033">
+
+    <SummaryInformation Description="DepSweep — audit and fix npm/pnpm vulnerabilities across repositories" />
+
+    <!-- Same-version upgrades allow reinstalling pre-release builds that share major.minor.patch. -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <!-- Advertised shortcuts need the icon to come from a file with the key file's extension (.exe);
+         DepSweepGui.exe embeds Assets\DepSweep.ico. -->
+    <Icon Id="DepSweepIcon.exe" SourceFile="$(var.AppPublishDir)DepSweepGui.exe" />
+    <Property Id="ARPPRODUCTICON" Value="DepSweepIcon.exe" />
+    <Property Id="ARPHELPLINK" Value="https://docs.npmjs.com/cli/commands/npm-audit" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="DepSweep" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <Feature Id="Main" Title="DepSweep" AllowAbsent="no">
+      <ComponentGroupRef Id="AppComponents" />
+    </Feature>
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+  </Package>
+
+  <Fragment>
+    <ComponentGroup Id="AppComponents" Directory="INSTALLFOLDER">
+      <!-- GUI with a Start menu shortcut. -->
+      <Component Id="GuiExe">
+        <File Id="DepSweepGuiExe" Source="$(var.AppPublishDir)DepSweepGui.exe" KeyPath="yes">
+          <Shortcut Id="StartMenuShortcut"
+                    Directory="ProgramMenuFolder"
+                    Name="DepSweep"
+                    Description="Audit and fix npm/pnpm vulnerabilities across repositories"
+                    WorkingDirectory="INSTALLFOLDER"
+                    Icon="DepSweepIcon.exe"
+                    Advertise="yes" />
+        </File>
+      </Component>
+
+      <!-- CLI, reachable from any terminal via PATH. -->
+      <Component Id="CliExe">
+        <File Id="DepSweepCliExe" Source="$(var.AppPublishDir)depsweep.exe" KeyPath="yes" />
+      </Component>
+
+      <Component Id="PathEntry">
+        <Environment Id="PathEnv" Name="PATH" Value="[INSTALLFOLDER]" Part="last" Action="set" System="yes" Permanent="no" />
+        <RegistryValue Root="HKLM" Key="Software\DepSweep" Name="InstallDir" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

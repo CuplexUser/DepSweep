@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DepSweep.Core.Config;
+using DepSweep.Core.Discovery;
 using DepSweep.Core.Models;
 
 namespace DepSweep.App.ViewModels;
@@ -17,7 +18,23 @@ public sealed partial class ProjectRowViewModel : ObservableObject
         Project = project;
         _isSelected = isSelected;
         _onSelectionChanged = onSelectionChanged;
+
+        // Cheap file-based lookup so rows can be grouped by repository before the first scan.
+        Repo = GitRepoLocator.FindRepoRoot(project.Path);
+        Branch = Repo is null ? null : GitRepoLocator.ReadBranch(Repo);
     }
+
+    /// <summary>Short location: "repo/sub/folder" inside a git repo, otherwise the full path.</summary>
+    public string DisplayPath => Repo is { } repo && System.IO.Path.GetDirectoryName(repo) is { } parent
+        ? PathUtil.ToRelativeForwardSlash(parent, Path)
+        : Path;
+
+    /// <summary>Group header for "group by repository".</summary>
+    public string RepoGroupName => Repo is null ? "(not in a git repository)" : $"{System.IO.Path.GetFileName(Repo)}  —  {Repo}";
+
+    public bool HasChanges => LastResult?.ChangedFiles.Count > 0;
+
+    public bool HasProblem => Status is ProjectStatus.Error or ProjectStatus.Skipped;
 
     public NodeProject Project { get; }
 
@@ -44,7 +61,7 @@ public sealed partial class ProjectRowViewModel : ObservableObject
     }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusText), nameof(IsBusy))]
+    [NotifyPropertyChangedFor(nameof(StatusText), nameof(IsBusy), nameof(HasProblem))]
     public partial ProjectStatus Status { get; set; } = ProjectStatus.NotScanned;
 
     [ObservableProperty]
@@ -55,6 +72,7 @@ public sealed partial class ProjectRowViewModel : ObservableObject
     public partial SeverityCounts? Counts { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RepoGroupName), nameof(DisplayPath))]
     public partial string? Repo { get; set; }
 
     [ObservableProperty]
@@ -64,6 +82,7 @@ public sealed partial class ProjectRowViewModel : ObservableObject
     public partial string LogText { get; set; } = "";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasChanges))]
     public partial ProjectResult? LastResult { get; set; }
 
     public ObservableCollection<Vulnerability> Vulnerabilities { get; } = [];

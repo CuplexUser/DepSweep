@@ -27,6 +27,12 @@ internal static class DebugSnapshots
             foreach (var request in Directory.GetFiles(dir, "*.request"))
             {
                 Save(window, Path.ChangeExtension(request, ".png"));
+                var i = 1;
+                foreach (var other in Application.Current.Windows.OfType<Window>().Where(w => w != window && w.IsVisible))
+                {
+                    Save(other, Path.ChangeExtension(request, null) + $"-dialog{i++}.png");
+                }
+
                 File.Delete(request);
             }
         };

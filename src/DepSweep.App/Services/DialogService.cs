@@ -7,6 +7,12 @@ public interface IDialogService
 {
     string? PickFolder(string title);
 
+    /// <summary>Folder picker with multi-select; empty when cancelled.</summary>
+    IReadOnlyList<string> PickFolders(string title);
+
+    /// <summary>Shows the import dialog modally; true when the user accepted.</summary>
+    bool ShowImport(ViewModels.ImportProjectsViewModel viewModel);
+
     string? PickSaveFile(string defaultName, string filter);
 
     bool Confirm(string title, string message, bool warning = false);
@@ -22,6 +28,23 @@ public sealed class DialogService : IDialogService
     {
         var dialog = new OpenFolderDialog { Title = title, Multiselect = false };
         return dialog.ShowDialog(Owner) == true ? dialog.FolderName : null;
+    }
+
+    public IReadOnlyList<string> PickFolders(string title)
+    {
+        var dialog = new OpenFolderDialog { Title = title, Multiselect = true };
+        return dialog.ShowDialog(Owner) == true ? dialog.FolderNames : [];
+    }
+
+    public bool ShowImport(ViewModels.ImportProjectsViewModel viewModel)
+    {
+        var window = new ImportProjectsWindow(viewModel);
+        if (Owner is { IsLoaded: true } owner)
+        {
+            window.Owner = owner;
+        }
+
+        return window.ShowDialog() == true;
     }
 
     public string? PickSaveFile(string defaultName, string filter)

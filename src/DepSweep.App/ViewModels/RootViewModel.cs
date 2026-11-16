@@ -21,6 +21,9 @@ public sealed partial class RootViewModel : ObservableObject
 
     public bool Exists => System.IO.Directory.Exists(Model.Path);
 
+    /// <summary>"Search folder" for recursive roots, "Project" for single-folder roots.</summary>
+    public string Kind => Model.Recursive ? "Search folder" : "Project";
+
     public bool Recursive
     {
         get => Model.Recursive;
@@ -30,6 +33,7 @@ public sealed partial class RootViewModel : ObservableObject
             {
                 Model.Recursive = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(Kind));
                 _onChanged();
             }
         }

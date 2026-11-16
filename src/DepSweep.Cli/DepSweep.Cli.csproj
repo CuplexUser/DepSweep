@@ -5,6 +5,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>depsweep</AssemblyName>
     <RootNamespace>DepSweep.Cli</RootNamespace>
+    <ApplicationIcon>Assets\depsweep-cli.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

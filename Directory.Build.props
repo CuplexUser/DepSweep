@@ -5,8 +5,35 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <Version>0.1.0</Version>
     <Authors>DepSweep</Authors>
+    <Company>DepSweep</Company>
     <Product>DepSweep</Product>
+    <Copyright>Copyright © DepSweep</Copyright>
   </PropertyGroup>
+
+  <!--
+    Versioning: MinVer derives Version / FileVersion / InformationalVersion from the latest git tag "vX.Y.Z".
+    Commits after a tag keep that tag's version (IgnoreHeight), and with no tag at all the version is 0.1.0.
+    The commit hash is kept as build metadata (shown as "0.1.0 (5f021f7)"). To release: git tag v0.2.0 (see README).
+  -->
+  <PropertyGroup>
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerMinimumMajorMinor>0.1</MinVerMinimumMajorMinor>
+    <MinVerIgnoreHeight>true</MinVerIgnoreHeight>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MinVer" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Plain major.minor.patch: drop the "-alpha.0" pre-release suffix MinVer adds when no tag exists yet. -->
+  <Target Name="DepSweepPlainVersion" AfterTargets="MinVer" Condition="'$(MinVerVersion)' != ''">
+    <PropertyGroup>
+      <DepSweepPlainVersion>$(MinVerMajor).$(MinVerMinor).$(MinVerPatch)</DepSweepPlainVersion>
+      <Version>$(DepSweepPlainVersion)</Version>
+      <PackageVersion>$(DepSweepPlainVersion)</PackageVersion>
+      <InformationalVersion>$(DepSweepPlainVersion)</InformationalVersion>
+      <InformationalVersion Condition="'$(MinVerBuildMetadata)' != ''">$(DepSweepPlainVersion)+$(MinVerBuildMetadata)</InformationalVersion>
+    </PropertyGroup>
+  </Target>
 </Project>

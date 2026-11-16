@@ -1,0 +1,11 @@
+<Project>
+  <!--
+    Deliberately does NOT import the repository-level Directory.Build.props: the installer is a WiX project,
+    not a .NET project, so MinVer/central package management/C# settings do not apply here.
+    The version is passed in by tools/build-installer.ps1 (-p:DepSweepVersion=...).
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <ImportDirectoryPackagesProps>false</ImportDirectoryPackagesProps>
+  </PropertyGroup>
+</Project>
