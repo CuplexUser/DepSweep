@@ -1,7 +1,7 @@
 # DepSweep
 
-Audit and fix npm / pnpm vulnerabilities across many projects from one place, then get a short report of
-which git repositories changed so you can review, commit and push them yourself.
+A Windows app and CLI (.NET 10) that audits and fixes npm/pnpm vulnerabilities across many repositories at once,
+then reports which repositories changed so you can review, commit and push them yourself.
 
 - **WPF app** (`DepSweepGui.exe`): add folders and projects (several at once), check projects, Scan, Fix, then read
   the per-repository report.
